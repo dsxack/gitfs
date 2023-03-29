@@ -2,6 +2,7 @@ package nodes
 
 import (
 	"context"
+	"github.com/dsxack/gitfs/internal/referenceiter"
 	"github.com/dsxack/gitfs/internal/set"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -30,6 +31,19 @@ func newBranchesNode(repository *git.Repository) *branchesNode {
 }
 
 func (node *branchesNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+	revision := revisionBranchName(name)
+	branches, err := node.repository.Branches()
+	if err != nil {
+		return nil, syscall.ENOENT
+	}
+	ok := referenceiter.Has(branches, revision)
+	if ok {
+		branchNode, err := newObjectTreeNodeByRevision(node.repository, revision)
+		if err != nil {
+			return nil, syscall.ENOENT
+		}
+		return node.NewInode(ctx, branchNode, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
+	}
 	return node.NewInode(
 		ctx,
 		newBranchSegmentNode(node.repository, name+branchNameSeparator),
@@ -44,9 +58,20 @@ func (node *branchesNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errn
 	}
 	dirEntries := set.NewSet[fuse.DirEntry]()
 	_ = branches.ForEach(func(branchRef *plumbing.Reference) error {
-		segments := strings.Split(branchRef.Name().String(), branchNameSeparator)
+		name := bareBranchName(branchRef.Name().String())
+		segments := strings.Split(name, branchNameSeparator)
 		dirEntries.Add(fuse.DirEntry{Name: segments[0], Mode: syscall.S_IFDIR})
 		return nil
 	})
 	return fs.NewListDirStream(dirEntries.Values()), 0
+}
+
+const revisionBranchPrefix = "refs/heads/"
+
+func bareBranchName(revision string) string {
+	return strings.TrimPrefix(revision, revisionBranchPrefix)
+}
+
+func revisionBranchName(branch string) string {
+	return revisionBranchPrefix + branch
 }

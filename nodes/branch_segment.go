@@ -30,15 +30,14 @@ func newBranchSegmentNode(repository *git.Repository, branchPrefix string) *bran
 }
 
 func (node *branchSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
-	revision := filepath.Join(node.branchPrefix, name)
+	revision := revisionBranchName(filepath.Join(node.branchPrefix, name))
 	branches, err := node.repository.Branches()
 	if err != nil {
 		return nil, syscall.ENOENT
 	}
-
 	ok := referenceiter.Has(branches, revision)
 	if ok {
-		branchNode, err := newBranchTreeNodeByRevision(node.repository, revision)
+		branchNode, err := newObjectTreeNodeByRevision(node.repository, revision)
 		if err != nil {
 			return nil, syscall.ENOENT
 		}
@@ -56,7 +55,7 @@ func (node *branchSegmentNode) Readdir(_ context.Context) (fs.DirStream, syscall
 	}
 	dirEntries := set.NewSet[fuse.DirEntry]()
 	_ = branches.ForEach(func(branchRef *plumbing.Reference) error {
-		branchName := branchRef.Name().String()
+		branchName := bareBranchName(branchRef.Name().String())
 		if !strings.HasPrefix(branchName, node.branchPrefix) {
 			return nil
 		}
