@@ -1,5 +1,7 @@
 # gitfs
 
+[![golangci-lint](https://github.com/dsxack/gitfs/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/dsxack/gitfs/actions/workflows/golangci-lint.yml)
+
 FUSE filesystem for browsing contents of git repositories revisions.
 
 ### Install
