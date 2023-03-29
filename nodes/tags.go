@@ -14,23 +14,32 @@ import (
 )
 
 var (
-	_ fs.InodeEmbedder = (*tagsNode)(nil)
-	_ fs.NodeReaddirer = (*tagsNode)(nil)
-	_ fs.NodeLookuper  = (*tagsNode)(nil)
+	_ fs.InodeEmbedder = (*TagsNode)(nil)
+	_ fs.NodeReaddirer = (*TagsNode)(nil)
+	_ fs.NodeLookuper  = (*TagsNode)(nil)
 )
 
 const tagNameSeparator = string(filepath.Separator)
 
-type tagsNode struct {
+// TagsNode is a node that represents a git repository's tags.
+// It is a directory that contains a directory for each tag.
+// If tag contains directory separator, it will be split into segments and each segment will be a nested directory.
+// For example, if tag name is "foo/bar", it will be represented as "foo" directory with "bar" directory inside.
+type TagsNode struct {
 	fs.Inode
 	repository *git.Repository
 }
 
-func newTagsNode(repository *git.Repository) *tagsNode {
-	return &tagsNode{repository: repository}
+// NewTagsNode creates a new TagsNode.
+func NewTagsNode(repository *git.Repository) *TagsNode {
+	return &TagsNode{repository: repository}
 }
 
-func (node *tagsNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+// Lookup returns a tag commit tree node or a tag segment node.
+// If tag name is "foo", it will return a tag commit tree node.
+// If tag name is "foo/bar", it will return a tag segment node with name "bar".
+// It returns ENOENT if the name is not found.
+func (node *TagsNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
 	revision := revisionTagName(name)
 	tags, err := node.repository.Tags()
 	if err != nil {
@@ -38,7 +47,7 @@ func (node *tagsNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut)
 	}
 	ok := referenceiter.Has(tags, revision)
 	if ok {
-		branchNode, err := newObjectTreeNodeByRevision(node.repository, revision)
+		branchNode, err := NewObjectTreeNodeByRevision(node.repository, revision)
 		if err != nil {
 			return nil, syscall.ENOENT
 		}
@@ -46,12 +55,14 @@ func (node *tagsNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut)
 	}
 	return node.NewInode(
 		ctx,
-		newTagSegmentNode(node.repository, name+tagNameSeparator),
+		NewTagSegmentNode(node.repository, name+tagNameSeparator),
 		fs.StableAttr{Mode: syscall.S_IFDIR},
 	), 0
 }
 
-func (node *tagsNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
+// Readdir returns a list of tag names.
+// If tag name is "foo/bar", it will return "foo" directory with "bar" directory inside.
+func (node *TagsNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
 	tagRefs, err := node.repository.Tags()
 	if err != nil {
 		return nil, syscall.ENOENT

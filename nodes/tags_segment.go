@@ -14,22 +14,30 @@ import (
 )
 
 var (
-	_ fs.InodeEmbedder = (*tagSegmentNode)(nil)
-	_ fs.NodeReaddirer = (*tagSegmentNode)(nil)
-	_ fs.NodeLookuper  = (*tagSegmentNode)(nil)
+	_ fs.InodeEmbedder = (*TagSegmentNode)(nil)
+	_ fs.NodeReaddirer = (*TagSegmentNode)(nil)
+	_ fs.NodeLookuper  = (*TagSegmentNode)(nil)
 )
 
-type tagSegmentNode struct {
+// TagSegmentNode is a node that represents a segment of a tag name.
+// For example, if the tag name is "release/v1.0.0" then there will be two
+// TagSegmentNodes, one for "release" and one for "v1.0.0".
+type TagSegmentNode struct {
 	fs.Inode
 	repository *git.Repository
 	tagPrefix  string
 }
 
-func newTagSegmentNode(repository *git.Repository, tagPrefix string) *tagSegmentNode {
-	return &tagSegmentNode{repository: repository, tagPrefix: tagPrefix}
+// NewTagSegmentNode creates a new TagSegmentNode.
+func NewTagSegmentNode(repository *git.Repository, tagPrefix string) *TagSegmentNode {
+	return &TagSegmentNode{repository: repository, tagPrefix: tagPrefix}
 }
 
-func (node *tagSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+// Lookup returns the child node with the given name.
+// If the name is a tag name, then a new ObjectTreeNode is returned.
+// Otherwise, a new TagSegmentNode is returned.
+// It returns ENOENT if the name is not found.
+func (node *TagSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
 	revision := revisionTagName(filepath.Join(node.tagPrefix, name))
 	tags, err := node.repository.Tags()
 	if err != nil {
@@ -38,7 +46,7 @@ func (node *tagSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.Ent
 
 	ok := referenceiter.Has(tags, revision)
 	if ok {
-		tagNode, err := newObjectTreeNodeByRevision(node.repository, revision)
+		tagNode, err := NewObjectTreeNodeByRevision(node.repository, revision)
 		if err != nil {
 			return nil, syscall.ENOENT
 		}
@@ -49,7 +57,11 @@ func (node *tagSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.Ent
 	return node.NewInode(ctx, &ops, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
 }
 
-func (node *tagSegmentNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
+// Readdir returns the child nodes of this node.
+// The child nodes are the segments of the tag names.
+// For example, if the tag names are "release/v1.0.0" and "release/v1.1.0"
+// then will return "release" directory with two children, "v1.0.0" and "v1.1.0".
+func (node *TagSegmentNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
 	tags, err := node.repository.Tags()
 	if err != nil {
 		return nil, syscall.ENOENT

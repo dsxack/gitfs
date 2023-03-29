@@ -14,22 +14,30 @@ import (
 )
 
 var (
-	_ fs.InodeEmbedder = (*branchSegmentNode)(nil)
-	_ fs.NodeReaddirer = (*branchSegmentNode)(nil)
-	_ fs.NodeLookuper  = (*branchSegmentNode)(nil)
+	_ fs.InodeEmbedder = (*BranchSegmentNode)(nil)
+	_ fs.NodeReaddirer = (*BranchSegmentNode)(nil)
+	_ fs.NodeLookuper  = (*BranchSegmentNode)(nil)
 )
 
-type branchSegmentNode struct {
+// BranchSegmentNode is a node that represents a segment of a branch name.
+// For example, if the branch name is "foo/bar/baz", then there will be three
+// BranchSegmentNodes, one for "foo", one for "bar", and one for "baz".
+type BranchSegmentNode struct {
 	fs.Inode
 	repository   *git.Repository
 	branchPrefix string
 }
 
-func newBranchSegmentNode(repository *git.Repository, branchPrefix string) *branchSegmentNode {
-	return &branchSegmentNode{repository: repository, branchPrefix: branchPrefix}
+// NewBranchSegmentNode creates a new BranchSegmentNode.
+func NewBranchSegmentNode(repository *git.Repository, branchPrefix string) *BranchSegmentNode {
+	return &BranchSegmentNode{repository: repository, branchPrefix: branchPrefix}
 }
 
-func (node *branchSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+// Lookup returns the child node with the given name.
+// If the name is a branch name, then a new ObjectTreeNode is returned.
+// Otherwise, a new BranchSegmentNode is returned.
+// It returns ENOENT if the name is not found.
+func (node *BranchSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
 	revision := revisionBranchName(filepath.Join(node.branchPrefix, name))
 	branches, err := node.repository.Branches()
 	if err != nil {
@@ -37,7 +45,7 @@ func (node *branchSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.
 	}
 	ok := referenceiter.Has(branches, revision)
 	if ok {
-		branchNode, err := newObjectTreeNodeByRevision(node.repository, revision)
+		branchNode, err := NewObjectTreeNodeByRevision(node.repository, revision)
 		if err != nil {
 			return nil, syscall.ENOENT
 		}
@@ -48,7 +56,11 @@ func (node *branchSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.
 	return node.NewInode(ctx, &ops, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
 }
 
-func (node *branchSegmentNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
+// Readdir returns the child nodes of this node.
+// The child nodes are the branches that start with the branch prefix.
+// For example, if branch names are "foo/bar" and "foo/buz", then
+// will return "foo" directory with two children, "bar" and "buz".
+func (node *BranchSegmentNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
 	branches, err := node.repository.Branches()
 	if err != nil {
 		return nil, syscall.ENOENT

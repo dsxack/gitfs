@@ -14,23 +14,33 @@ import (
 )
 
 var (
-	_ fs.InodeEmbedder = (*branchesNode)(nil)
-	_ fs.NodeReaddirer = (*branchesNode)(nil)
-	_ fs.NodeLookuper  = (*branchesNode)(nil)
+	_ fs.InodeEmbedder = (*BranchesNode)(nil)
+	_ fs.NodeReaddirer = (*BranchesNode)(nil)
+	_ fs.NodeLookuper  = (*BranchesNode)(nil)
 )
 
 const branchNameSeparator = string(filepath.Separator)
 
-type branchesNode struct {
+// BranchesNode is a filesystem node that represents a list of branches.
+// It is a directory that contains a list of branches.
+// Each branch is a directory.
+// If branch contains directory separator, it will be split into segments and each segment will be a nested directory.
+// For example, if branch name is "foo/bar", it will be represented as "foo" directory with "bar" directory inside.
+type BranchesNode struct {
 	fs.Inode
 	repository *git.Repository
 }
 
-func newBranchesNode(repository *git.Repository) *branchesNode {
-	return &branchesNode{repository: repository}
+// NewBranchesNode creates a new BranchesNode.
+func NewBranchesNode(repository *git.Repository) *BranchesNode {
+	return &BranchesNode{repository: repository}
 }
 
-func (node *branchesNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+// Lookup returns a branch commit three node or a branch segment node.
+// If branch name is "foo", it will return a branch commit tree node.
+// If branch name is "foo/bar", it will return a branch segment node with name "bar".
+// It returns ENOENT if the name is not found.
+func (node *BranchesNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
 	revision := revisionBranchName(name)
 	branches, err := node.repository.Branches()
 	if err != nil {
@@ -38,7 +48,7 @@ func (node *branchesNode) Lookup(ctx context.Context, name string, _ *fuse.Entry
 	}
 	ok := referenceiter.Has(branches, revision)
 	if ok {
-		branchNode, err := newObjectTreeNodeByRevision(node.repository, revision)
+		branchNode, err := NewObjectTreeNodeByRevision(node.repository, revision)
 		if err != nil {
 			return nil, syscall.ENOENT
 		}
@@ -46,12 +56,14 @@ func (node *branchesNode) Lookup(ctx context.Context, name string, _ *fuse.Entry
 	}
 	return node.NewInode(
 		ctx,
-		newBranchSegmentNode(node.repository, name+branchNameSeparator),
+		NewBranchSegmentNode(node.repository, name+branchNameSeparator),
 		fs.StableAttr{Mode: syscall.S_IFDIR},
 	), 0
 }
 
-func (node *branchesNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
+// Readdir returns a list of branches.
+// If branch contains directory separator, it will be split into segments and each segment will be a nested directory.
+func (node *BranchesNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
 	branches, err := node.repository.Branches()
 	if err != nil {
 		return nil, syscall.ENOENT

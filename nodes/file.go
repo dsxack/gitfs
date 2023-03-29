@@ -12,14 +12,15 @@ import (
 )
 
 var (
-	_ fs.InodeEmbedder = (*fileNode)(nil)
-	_ fs.NodeOpener    = (*fileNode)(nil)
-	_ fs.NodeGetattrer = (*fileNode)(nil)
-	_ fs.NodeReader    = (*fileNode)(nil)
-	_ fs.NodeReleaser  = (*fileNode)(nil)
+	_ fs.InodeEmbedder = (*FileNode)(nil)
+	_ fs.NodeOpener    = (*FileNode)(nil)
+	_ fs.NodeGetattrer = (*FileNode)(nil)
+	_ fs.NodeReader    = (*FileNode)(nil)
+	_ fs.NodeReleaser  = (*FileNode)(nil)
 )
 
-type fileNode struct {
+// FileNode is a file node.
+type FileNode struct {
 	fs.Inode
 	file   *object.File
 	buffer *bytes.Reader
@@ -27,11 +28,13 @@ type fileNode struct {
 	commit *object.Commit
 }
 
-func newFileNode(file *object.File, commit *object.Commit) *fileNode {
-	return &fileNode{file: file, commit: commit}
+// NewFileNode creates a new file node.
+func NewFileNode(file *object.File, commit *object.Commit) *FileNode {
+	return &FileNode{file: file, commit: commit}
 }
 
-func (node *fileNode) Open(_ context.Context, _ uint32) (fh fs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
+// Open opens the file.
+func (node *FileNode) Open(_ context.Context, _ uint32) (fh fs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
 	reader, err := node.file.Reader()
 	if err != nil {
 		return nil, 0, syscall.ENOENT
@@ -44,14 +47,16 @@ func (node *fileNode) Open(_ context.Context, _ uint32) (fh fs.FileHandle, fuseF
 	return nil, 0, 0
 }
 
-func (node *fileNode) Getattr(_ context.Context, _ fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
+// Getattr gets the file attributes.
+func (node *FileNode) Getattr(_ context.Context, _ fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
 	out.Size = uint64(node.file.Size)
 	out.Mode = uint32(node.file.Mode)
 	out.Mtime = uint64(node.commit.Committer.When.Unix())
 	return 0
 }
 
-func (node *fileNode) Read(_ context.Context, _ fs.FileHandle, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
+// Read reads the file.
+func (node *FileNode) Read(_ context.Context, _ fs.FileHandle, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
 	node.mu.Lock()
 	defer node.mu.Unlock()
 
@@ -63,7 +68,8 @@ func (node *fileNode) Read(_ context.Context, _ fs.FileHandle, dest []byte, off 
 	return fuse.ReadResultData(dest[:n]), 0
 }
 
-func (node *fileNode) Release(_ context.Context, _ fs.FileHandle) syscall.Errno {
+// Release releases the file.
+func (node *FileNode) Release(_ context.Context, _ fs.FileHandle) syscall.Errno {
 	node.mu.Lock()
 	defer node.mu.Unlock()
 	node.buffer.Reset([]byte{})

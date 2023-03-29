@@ -11,29 +11,39 @@ import (
 )
 
 var (
-	_ fs.InodeEmbedder = (*commitsNode)(nil)
-	_ fs.NodeReaddirer = (*commitsNode)(nil)
-	_ fs.NodeLookuper  = (*commitsNode)(nil)
+	_ fs.InodeEmbedder = (*CommitsNode)(nil)
+	_ fs.NodeReaddirer = (*CommitsNode)(nil)
+	_ fs.NodeLookuper  = (*CommitsNode)(nil)
 )
 
-type commitsNode struct {
+// CommitsNode is a filesystem node that represents a list of commits.
+// It is a child of the root node.
+// It is a directory.
+// It contains a list of directories, each directory represents a commit.
+type CommitsNode struct {
 	fs.Inode
 	repository *git.Repository
 }
 
-func newCommitsNode(repository *git.Repository) *commitsNode {
-	return &commitsNode{repository: repository}
+// NewCommitsNode creates a new CommitsNode.
+func NewCommitsNode(repository *git.Repository) *CommitsNode {
+	return &CommitsNode{repository: repository}
 }
 
-func (node *commitsNode) Lookup(ctx context.Context, hash string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
-	objectNode, err := newObjectTreeNodeByRevision(node.repository, hash)
+// Lookup looks up a commit by its hash.
+// It returns a directory that represents the commit.
+// It returns ENOENT if the name is not found.
+func (node *CommitsNode) Lookup(ctx context.Context, hash string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+	objectNode, err := NewObjectTreeNodeByRevision(node.repository, hash)
 	if err != nil {
 		return nil, syscall.ENOENT
 	}
 	return node.NewInode(ctx, objectNode, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
 }
 
-func (node *commitsNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
+// Readdir reads the list of commits.
+// It returns a list of directories, each directory represents a commit.
+func (node *CommitsNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
 	commits, err := node.repository.CommitObjects()
 	if err != nil {
 		return nil, syscall.ENOENT

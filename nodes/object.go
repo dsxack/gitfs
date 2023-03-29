@@ -13,13 +13,15 @@ import (
 )
 
 var (
-	_ fs.InodeEmbedder = (*objectTreeNode)(nil)
-	_ fs.NodeReaddirer = (*objectTreeNode)(nil)
-	_ fs.NodeGetattrer = (*objectTreeNode)(nil)
-	_ fs.NodeLookuper  = (*objectTreeNode)(nil)
+	_ fs.InodeEmbedder = (*ObjectTreeNode)(nil)
+	_ fs.NodeReaddirer = (*ObjectTreeNode)(nil)
+	_ fs.NodeGetattrer = (*ObjectTreeNode)(nil)
+	_ fs.NodeLookuper  = (*ObjectTreeNode)(nil)
 )
 
-type objectTreeNode struct {
+// ObjectTreeNode is a node that represents a tree object in a git repository.
+// It is used to represent the content of commit.
+type ObjectTreeNode struct {
 	fs.Inode
 	repository *git.Repository
 	revision   string
@@ -27,7 +29,9 @@ type objectTreeNode struct {
 	tree       *object.Tree
 }
 
-func newObjectTreeNodeByRevision(repository *git.Repository, revision string) (*objectTreeNode, error) {
+// NewObjectTreeNodeByRevision creates a new ObjectTreeNode by a revision name.
+// The revision name can be a branch name, a tag name or a commit hash.
+func NewObjectTreeNodeByRevision(repository *git.Repository, revision string) (*ObjectTreeNode, error) {
 	h, err := repository.ResolveRevision(plumbing.Revision(revision))
 	if err != nil {
 		return nil, fmt.Errorf("repository: resolve revision: %v", err)
@@ -43,7 +47,7 @@ func newObjectTreeNodeByRevision(repository *git.Repository, revision string) (*
 		return nil, fmt.Errorf("commit tree: %v", err)
 	}
 
-	return &objectTreeNode{
+	return &ObjectTreeNode{
 		commit:     commit,
 		repository: repository,
 		revision:   revision,
@@ -51,13 +55,14 @@ func newObjectTreeNodeByRevision(repository *git.Repository, revision string) (*
 	}, nil
 }
 
-func newObjectTreeNode(
+// NewObjectTreeNode creates a new ObjectTreeNode.
+func NewObjectTreeNode(
 	repository *git.Repository,
 	revision string,
 	commit *object.Commit,
 	tree *object.Tree,
-) *objectTreeNode {
-	return &objectTreeNode{
+) *ObjectTreeNode {
+	return &ObjectTreeNode{
 		repository: repository,
 		revision:   revision,
 		commit:     commit,
@@ -65,7 +70,7 @@ func newObjectTreeNode(
 	}
 }
 
-func (node *objectTreeNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+func (node *ObjectTreeNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
 	entry, err := node.tree.FindEntry(name)
 	if err != nil {
 		return nil, syscall.ENOENT
@@ -75,7 +80,7 @@ func (node *objectTreeNode) Lookup(ctx context.Context, name string, _ *fuse.Ent
 		if err != nil {
 			return nil, syscall.ENOENT
 		}
-		return node.NewInode(ctx, newFileNode(file, node.commit), fs.StableAttr{Mode: syscall.S_IFREG}), 0
+		return node.NewInode(ctx, NewFileNode(file, node.commit), fs.StableAttr{Mode: syscall.S_IFREG}), 0
 	}
 
 	tree, err := node.tree.Tree(name)
@@ -85,12 +90,12 @@ func (node *objectTreeNode) Lookup(ctx context.Context, name string, _ *fuse.Ent
 
 	return node.NewInode(
 		ctx,
-		newObjectTreeNode(node.repository, node.revision, node.commit, tree),
+		NewObjectTreeNode(node.repository, node.revision, node.commit, tree),
 		fs.StableAttr{Mode: syscall.S_IFDIR},
 	), 0
 }
 
-func (node *objectTreeNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
+func (node *ObjectTreeNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
 	dirEntries := set.NewSet[fuse.DirEntry]()
 	for _, entry := range node.tree.Entries {
 		var mode uint32 = fuse.S_IFREG
@@ -106,7 +111,7 @@ func (node *objectTreeNode) Readdir(_ context.Context) (fs.DirStream, syscall.Er
 	return fs.NewListDirStream(dirEntries.Values()), 0
 }
 
-func (node *objectTreeNode) Getattr(_ context.Context, _ fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
+func (node *ObjectTreeNode) Getattr(_ context.Context, _ fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
 	out.Mtime = uint64(node.commit.Committer.When.Unix())
 	return 0
 }
