@@ -27,30 +27,19 @@ var mountCmd = &cobra.Command{
 			mountPoint     = args[1]
 		)
 
-		workDirFS := osfs.New(repositoryPath)
-		if _, err := workDirFS.Stat(git.GitDirName); err == nil {
-			workDirFS, err = workDirFS.Chroot(git.GitDirName)
-			if err != nil {
-				return err
-			}
-		}
-		storage := filesystem.NewStorageWithOptions(
-			workDirFS,
-			cache.NewObjectLRUDefault(),
-			filesystem.Options{KeepDescriptors: true},
-		)
-		repository, err := git.Open(storage, nil)
-		if err != nil {
-			return err
-		}
-		defer storage.Close()
-
 		volumeName := fmt.Sprintf(
 			"%s (%s)",
 			filepath.Base(mountPoint),
 			filepath.Base(repositoryPath),
 		)
 
+		repository, err, cleanup := newRepository(cmd, repositoryPath)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+
+		cmd.Println("Mounting filesystem...")
 		server, err := fs.Mount(mountPoint, nodes.NewRootNode(repository), &fs.Options{
 			MountOptions: fuse.MountOptions{
 				Options: []string{
@@ -62,20 +51,68 @@ var mountCmd = &cobra.Command{
 			},
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to mount filesystem: %w", err)
 		}
-
+		cmd.Printf("Filesystem mounted successfully into directory: %s\n", mountPoint)
 		go server.Wait()
 
 		sig := make(chan os.Signal)
 		signal.Notify(sig, os.Interrupt)
 		select {
 		case <-sig:
-			server.Unmount()
+			cmd.Println("Received interrupt signal, unmounting...")
+			err := server.Unmount()
+			if err != nil {
+				cmd.Printf("Failed to unmount filesystem: %s\n", err)
+			}
 		}
 
 		return nil
 	},
+}
+
+func newRepository(cmd *cobra.Command, repositoryURL string) (*git.Repository, error, func()) {
+	dummyCleanup := func() {}
+
+	_, err := os.Stat(repositoryURL)
+	if os.IsNotExist(err) {
+		clonePath, err := os.MkdirTemp("", "gitfs")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create temporary directory: %w", err), dummyCleanup
+		}
+		cmd.Printf("Cloning repository into temporary directory: %s\n", clonePath)
+		repository, err := git.PlainClone(clonePath, false, &git.CloneOptions{
+			URL: repositoryURL,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to clone repository: %w", err), dummyCleanup
+		}
+		cmd.Println("Repository cloned successfully")
+		return repository, nil, dummyCleanup
+	}
+	workDirFS := osfs.New(repositoryURL)
+	if _, err := workDirFS.Stat(git.GitDirName); err == nil {
+		workDirFS, err = workDirFS.Chroot(git.GitDirName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to chroot to git directory: %w", err), dummyCleanup
+		}
+	}
+	storage := filesystem.NewStorageWithOptions(
+		workDirFS,
+		cache.NewObjectLRUDefault(),
+		filesystem.Options{KeepDescriptors: true},
+	)
+	cleanup := func() {
+		err := storage.Close()
+		if err != nil {
+			cmd.Println("failed to close storage:", err)
+		}
+	}
+	repository, err := git.Open(storage, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open repository: %w", err), cleanup
+	}
+	return repository, nil, cleanup
 }
 
 func init() {
