@@ -56,15 +56,13 @@ var mountCmd = &cobra.Command{
 		cmd.Printf("Filesystem mounted successfully into directory: %s\n", mountPoint)
 		go server.Wait()
 
-		sig := make(chan os.Signal)
+		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, os.Interrupt)
-		select {
-		case <-sig:
-			cmd.Println("Received interrupt signal, unmounting...")
-			err := server.Unmount()
-			if err != nil {
-				cmd.Printf("Failed to unmount filesystem: %s\n", err)
-			}
+		<-sig
+		cmd.Println("Received interrupt signal, unmounting...")
+		err = server.Unmount()
+		if err != nil {
+			cmd.Printf("Failed to unmount filesystem: %s\n", err)
 		}
 
 		return nil
