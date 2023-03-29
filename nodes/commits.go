@@ -33,7 +33,7 @@ func NewCommitsNode(repository *git.Repository) *CommitsNode {
 // Lookup looks up a commit by its hash.
 // It returns a directory that represents the commit.
 // It returns ENOENT if the name is not found.
-func (node *CommitsNode) Lookup(ctx context.Context, hash string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+func (node *CommitsNode) Lookup(ctx context.Context, hash string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
 	objectNode, err := NewObjectTreeNodeByRevision(node.repository, hash)
 	if err != nil {
 		return nil, syscall.ENOENT
