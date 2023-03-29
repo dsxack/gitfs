@@ -53,6 +53,10 @@ func (node *TagsNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut)
 		}
 		return node.NewInode(ctx, branchNode, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
 	}
+	ok = referenceiter.HasPrefix(tags, revision+tagNameSeparator)
+	if !ok {
+		return nil, syscall.ENOENT
+	}
 	return node.NewInode(
 		ctx,
 		NewTagSegmentNode(node.repository, name+tagNameSeparator),

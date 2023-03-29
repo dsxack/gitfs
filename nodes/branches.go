@@ -54,6 +54,10 @@ func (node *BranchesNode) Lookup(ctx context.Context, name string, _ *fuse.Entry
 		}
 		return node.NewInode(ctx, branchNode, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
 	}
+	ok = referenceiter.HasPrefix(branches, revision+branchNameSeparator)
+	if !ok {
+		return nil, syscall.ENOENT
+	}
 	return node.NewInode(
 		ctx,
 		NewBranchSegmentNode(node.repository, name+branchNameSeparator),

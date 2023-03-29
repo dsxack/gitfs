@@ -3,6 +3,7 @@ package referenceiter
 import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/storer"
+	"strings"
 )
 
 func Has(iter storer.ReferenceIter, name string) bool {
@@ -15,4 +16,16 @@ func Has(iter storer.ReferenceIter, name string) bool {
 		return nil
 	})
 	return has
+}
+
+func HasPrefix(iter storer.ReferenceIter, prefix string) bool {
+	hasPrefix := false
+	_ = iter.ForEach(func(branchRef *plumbing.Reference) error {
+		branchName := branchRef.Name().String()
+		if strings.HasPrefix(branchName, prefix) {
+			hasPrefix = true
+		}
+		return nil
+	})
+	return hasPrefix
 }

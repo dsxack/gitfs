@@ -52,8 +52,11 @@ func (node *TagSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.Ent
 		}
 		return node.NewInode(ctx, tagNode, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
 	}
-
-	ops := tagSegmentNode{repository: node.repository, tagPrefix: filepath.Join(node.tagPrefix, name) + tagNameSeparator}
+	ok = referenceiter.HasPrefix(tags, revision+tagNameSeparator)
+	if !ok {
+		return nil, syscall.ENOENT
+	}
+	ops := TagSegmentNode{repository: node.repository, tagPrefix: filepath.Join(node.tagPrefix, name) + tagNameSeparator}
 	return node.NewInode(ctx, &ops, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
 }
 

@@ -51,8 +51,11 @@ func (node *BranchSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.
 		}
 		return node.NewInode(ctx, branchNode, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
 	}
-
-	ops := branchSegmentNode{repository: node.repository, branchPrefix: filepath.Join(node.branchPrefix, name) + branchNameSeparator}
+	ok = referenceiter.HasPrefix(branches, revision+branchNameSeparator)
+	if !ok {
+		return nil, syscall.ENOENT
+	}
+	ops := BranchSegmentNode{repository: node.repository, branchPrefix: filepath.Join(node.branchPrefix, name) + branchNameSeparator}
 	return node.NewInode(ctx, &ops, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
 }
 
