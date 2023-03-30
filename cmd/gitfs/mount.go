@@ -27,12 +27,6 @@ var mountCmd = &cobra.Command{
 			mountPoint     = args[1]
 		)
 
-		volumeName := fmt.Sprintf(
-			"%s (%s)",
-			filepath.Base(mountPoint),
-			filepath.Base(repositoryPath),
-		)
-
 		repository, err, cleanup := newRepository(cmd, repositoryPath)
 		if err != nil {
 			return err
@@ -42,12 +36,10 @@ var mountCmd = &cobra.Command{
 		cmd.Println("Mounting filesystem...")
 		server, err := fs.Mount(mountPoint, nodes.NewRootNode(repository), &fs.Options{
 			MountOptions: fuse.MountOptions{
-				Options: []string{
-					"volname=" + volumeName,
-				},
-				FsName: fmt.Sprintf("gitfs: %s", filepath.Join(repositoryPath, git.GitDirName)),
-				Name:   "gitfs",
-				Debug:  debug,
+				Options: platformMountOptions(repositoryPath, mountPoint),
+				FsName:  fmt.Sprintf("gitfs: %s", filepath.Join(repositoryPath, git.GitDirName)),
+				Name:    "gitfs",
+				Debug:   debug,
 			},
 		})
 		if err != nil {
