@@ -30,7 +30,7 @@ or with remote source (repository will be cloned into temporary directory)
 gitfs mount https://github.com/dsxack/gitfs.git ./gitfs
 ```
 
-Example of directory structure of mounted repository
+Example directory structure of mounted repository
 
 ```shell
 tree ./gitfs
