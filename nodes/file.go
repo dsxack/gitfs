@@ -61,6 +61,9 @@ func (node *FileNode) Read(_ context.Context, _ fs.FileHandle, dest []byte, off 
 	defer node.mu.Unlock()
 
 	n, err := node.buffer.ReadAt(dest, off)
+	if err == io.EOF {
+		return fuse.ReadResultData(dest[off : off+int64(n)]), 0
+	}
 	if err != nil {
 		return nil, syscall.ENOENT
 	}
