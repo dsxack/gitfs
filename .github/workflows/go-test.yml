@@ -1,0 +1,35 @@
+name: Go package
+
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - main
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: [ '1.18', 'stable' ]
+    name: Go ${{ matrix.go }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt install fuse
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: go test -v ./...

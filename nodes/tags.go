@@ -45,7 +45,7 @@ func (node *TagsNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut)
 	if err != nil {
 		return nil, syscall.ENOENT
 	}
-	ok := referenceiter.Has(tags, revision)
+	ok, hasPrefix := referenceiter.Has(tags, revision)
 	if ok {
 		branchNode, err := NewObjectTreeNodeByRevision(node.repository, revision)
 		if err != nil {
@@ -53,8 +53,7 @@ func (node *TagsNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut)
 		}
 		return node.NewInode(ctx, branchNode, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
 	}
-	ok = referenceiter.HasPrefix(tags, revision+tagNameSeparator)
-	if !ok {
+	if !hasPrefix {
 		return nil, syscall.ENOENT
 	}
 	return node.NewInode(
@@ -71,7 +70,7 @@ func (node *TagsNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
 	if err != nil {
 		return nil, syscall.ENOENT
 	}
-	dirEntries := set.NewSet[fuse.DirEntry]()
+	dirEntries := set.New[fuse.DirEntry]()
 	_ = tagRefs.ForEach(func(tagRef *plumbing.Reference) error {
 		tagName := bareTagName(tagRef.Name().String())
 		segments := strings.Split(tagName, tagNameSeparator)

@@ -44,7 +44,7 @@ func (node *TagSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.Ent
 		return nil, syscall.ENOENT
 	}
 
-	ok := referenceiter.Has(tags, revision)
+	ok, hasPrefix := referenceiter.Has(tags, revision)
 	if ok {
 		tagNode, err := NewObjectTreeNodeByRevision(node.repository, revision)
 		if err != nil {
@@ -52,8 +52,7 @@ func (node *TagSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.Ent
 		}
 		return node.NewInode(ctx, tagNode, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
 	}
-	ok = referenceiter.HasPrefix(tags, revision+tagNameSeparator)
-	if !ok {
+	if !hasPrefix {
 		return nil, syscall.ENOENT
 	}
 	ops := TagSegmentNode{repository: node.repository, tagPrefix: filepath.Join(node.tagPrefix, name) + tagNameSeparator}
@@ -69,7 +68,7 @@ func (node *TagSegmentNode) Readdir(_ context.Context) (fs.DirStream, syscall.Er
 	if err != nil {
 		return nil, syscall.ENOENT
 	}
-	dirEntries := set.NewSet[fuse.DirEntry]()
+	dirEntries := set.New[fuse.DirEntry]()
 	_ = tags.ForEach(func(tagRef *plumbing.Reference) error {
 		tagName := bareTagName(tagRef.Name().String())
 		if !strings.HasPrefix(tagName, node.tagPrefix) {

@@ -96,7 +96,7 @@ func (node *ObjectTreeNode) Lookup(ctx context.Context, name string, _ *fuse.Ent
 }
 
 func (node *ObjectTreeNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
-	dirEntries := set.NewSet[fuse.DirEntry]()
+	dirEntries := set.New[fuse.DirEntry]()
 	for _, entry := range node.tree.Entries {
 		var mode uint32 = fuse.S_IFREG
 		if !entry.Mode.IsFile() {

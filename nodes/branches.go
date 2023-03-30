@@ -46,7 +46,7 @@ func (node *BranchesNode) Lookup(ctx context.Context, name string, _ *fuse.Entry
 	if err != nil {
 		return nil, syscall.ENOENT
 	}
-	ok := referenceiter.Has(branches, revision)
+	ok, hasPrefix := referenceiter.Has(branches, revision)
 	if ok {
 		branchNode, err := NewObjectTreeNodeByRevision(node.repository, revision)
 		if err != nil {
@@ -54,8 +54,7 @@ func (node *BranchesNode) Lookup(ctx context.Context, name string, _ *fuse.Entry
 		}
 		return node.NewInode(ctx, branchNode, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
 	}
-	ok = referenceiter.HasPrefix(branches, revision+branchNameSeparator)
-	if !ok {
+	if !hasPrefix {
 		return nil, syscall.ENOENT
 	}
 	return node.NewInode(
@@ -72,7 +71,7 @@ func (node *BranchesNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errn
 	if err != nil {
 		return nil, syscall.ENOENT
 	}
-	dirEntries := set.NewSet[fuse.DirEntry]()
+	dirEntries := set.New[fuse.DirEntry]()
 	_ = branches.ForEach(func(branchRef *plumbing.Reference) error {
 		name := bareBranchName(branchRef.Name().String())
 		segments := strings.Split(name, branchNameSeparator)

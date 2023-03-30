@@ -48,7 +48,7 @@ func (node *CommitsNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno
 	if err != nil {
 		return nil, syscall.ENOENT
 	}
-	dirEntries := set.NewSet[fuse.DirEntry]()
+	dirEntries := set.New[fuse.DirEntry]()
 	_ = commits.ForEach(func(commit *object.Commit) error {
 		dirEntries.Add(fuse.DirEntry{Name: commit.Hash.String(), Mode: syscall.S_IFDIR})
 		return nil

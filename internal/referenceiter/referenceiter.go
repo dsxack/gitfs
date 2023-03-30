@@ -6,26 +6,18 @@ import (
 	"strings"
 )
 
-func Has(iter storer.ReferenceIter, name string) bool {
+func Has(iter storer.ReferenceIter, name string) (bool, bool) {
 	has := false
+	hasPrefix := false
 	_ = iter.ForEach(func(reference *plumbing.Reference) error {
 		refName := reference.Name().String()
 		if refName == name {
 			has = true
 		}
-		return nil
-	})
-	return has
-}
-
-func HasPrefix(iter storer.ReferenceIter, prefix string) bool {
-	hasPrefix := false
-	_ = iter.ForEach(func(branchRef *plumbing.Reference) error {
-		branchName := branchRef.Name().String()
-		if strings.HasPrefix(branchName, prefix) {
+		if strings.HasPrefix(refName, name) {
 			hasPrefix = true
 		}
 		return nil
 	})
-	return hasPrefix
+	return has, hasPrefix
 }
