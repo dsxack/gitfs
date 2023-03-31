@@ -2,6 +2,7 @@
 
 [![golangci-lint](https://github.com/dsxack/gitfs/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/dsxack/gitfs/actions/workflows/golangci-lint.yml)
 [![Go package](https://github.com/dsxack/gitfs/actions/workflows/go-test.yml/badge.svg)](https://github.com/dsxack/gitfs/actions/workflows/go-test.yml)
+[![codecov](https://codecov.io/gh/dsxack/gitfs/branch/master/graph/badge.svg?token=JG8wPYoqAq)](https://codecov.io/gh/dsxack/gitfs)
 
 FUSE filesystem for browsing contents of git repositories revisions.
 
