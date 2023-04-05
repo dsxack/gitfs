@@ -37,8 +37,10 @@ var mountCmd = &cobra.Command{
 		)
 
 		if daemonModeFlag {
-			daemonContext := daemonContextByMountPoint(mountPoint)
-
+			daemonContext, err := daemonContextByMountPoint(mountPoint)
+			if err != nil {
+				return err
+			}
 			daemonProcess, err := daemonContext.Reborn()
 			if err != nil {
 				return fmt.Errorf("unable to run daemon process: %w", err)

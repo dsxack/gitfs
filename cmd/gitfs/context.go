@@ -38,7 +38,12 @@ func init() {
 	}
 }
 
-func daemonContextByMountPoint(mountPoint string) daemon.Context {
+func daemonContextByMountPoint(mountPoint string) (daemon.Context, error) {
+	mountPoint, err := filepath.Abs(mountPoint)
+	if err != nil {
+		return daemon.Context{}, fmt.Errorf("unable to get absolute path for '%s': %w", mountPoint, err)
+	}
+
 	return daemon.Context{
 		PidFileName: pidFileName(mountPoint),
 		PidFilePerm: 0644,
@@ -46,7 +51,7 @@ func daemonContextByMountPoint(mountPoint string) daemon.Context {
 		LogFilePerm: 0640,
 		WorkDir:     "./",
 		Args:        os.Args,
-	}
+	}, nil
 }
 
 func mountPointHash(mountPoint string) string {
