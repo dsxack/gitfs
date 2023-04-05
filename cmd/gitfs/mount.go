@@ -14,15 +14,16 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"runtime/pprof"
 	"syscall"
 )
 
-var debug bool
-var daemonMode = false
+var debugFlag bool
+var daemonModeFlag = false
 
 func init() {
-	mountCmd.Flags().BoolVarP(&debug, "verbose", "v", false, "enable verbose output")
-	mountCmd.Flags().BoolVarP(&daemonMode, "daemon", "d", false, "run in daemon mode")
+	mountCmd.Flags().BoolVarP(&debugFlag, "verbose", "v", false, "enable verbose output")
+	mountCmd.Flags().BoolVarP(&daemonModeFlag, "daemon", "d", false, "run in daemon mode")
 }
 
 var mountCmd = &cobra.Command{
@@ -35,7 +36,7 @@ var mountCmd = &cobra.Command{
 			mountPoint     = args[1]
 		)
 
-		if daemonMode {
+		if daemonModeFlag {
 			daemonContext := daemonContextByMountPoint(mountPoint)
 
 			daemonProcess, err := daemonContext.Reborn()
@@ -65,7 +66,7 @@ var mountCmd = &cobra.Command{
 				Options: mountOptions(repositoryPath, mountPoint),
 				FsName:  fmt.Sprintf("gitfs: %s", filepath.Join(repositoryPath, git.GitDirName)),
 				Name:    "gitfs",
-				Debug:   debug,
+				Debug:   debugFlag,
 			},
 		})
 		if err != nil {
@@ -80,6 +81,7 @@ var mountCmd = &cobra.Command{
 			sigC,
 			syscall.SIGTERM,
 			syscall.SIGINT,
+			syscall.SIGQUIT,
 		)
 
 		for {
@@ -91,9 +93,14 @@ var mountCmd = &cobra.Command{
 				err := server.Unmount()
 				if err != nil {
 					cmd.Printf("Failed to unmount filesystem: %s\n", err)
-					return err
+					continue
 				}
 				return nil
+
+			case syscall.SIGQUIT:
+				cmd.Printf("Go version: %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+				_ = pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
+				continue
 			}
 		}
 	},
