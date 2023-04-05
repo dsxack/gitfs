@@ -19,7 +19,7 @@ FUSE filesystem for browsing contents of git repositories revisions.
 go install github.com/dsxack/gitfs/cmd/gitfs@latest
 ```
 
-### Usage example
+### Usage
 
 Mount with local repository clone or 
 remote repository url (in this case repository will be cloned into temporary directory)
@@ -39,3 +39,7 @@ Umount previously mounted in daemon mode filesystem
 ```sh
 gitfs umount <mountpoint>
 ```
+
+### License
+
+[MIT](LICENSE)
