@@ -42,13 +42,12 @@ var mountCmd = &cobra.Command{
 				return err
 			}
 
-			cmd.Printf("Running in daemon mode, logs could be discovered in %s\n", daemonContext.LogFileName)
-
 			daemonProcess, err := daemonContext.Reborn()
 			if err != nil {
 				return fmt.Errorf("unable to run daemon process: %w", err)
 			}
 			if daemonProcess != nil {
+				cmd.Printf("Running in daemon mode, logs could be discovered in %s\n", daemonContext.LogFileName)
 				return nil
 			}
 			defer func() {
