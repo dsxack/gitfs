@@ -23,7 +23,7 @@ func TestLookup(t *testing.T) {
 func TestReaddir(t *testing.T) {
 	mountPoint := testdata.Initialize(t, NewRootNode)
 
-	fs.WalkDir(testdata.ExpectedFiles, ".", func(path string, d fs.DirEntry, err error) error {
+	require.NoError(t, fs.WalkDir(testdata.ExpectedFiles, ".", func(path string, d fs.DirEntry, err error) error {
 		if !d.IsDir() {
 			return nil
 		}
@@ -44,7 +44,7 @@ func TestReaddir(t *testing.T) {
 		})
 
 		return nil
-	})
+	}))
 }
 
 type dirEntry interface {
