@@ -6,7 +6,7 @@
 
 FUSE filesystem for browsing contents of git repositories revisions.
 
-[![asciicast](https://asciinema.org/a/fWB94T6kTTGal1fum79rWYFfH.svg)](https://asciinema.org/a/fWB94T6kTTGal1fum79rWYFfH)
+[![asciicast](https://asciinema.org/a/574704.svg)](https://asciinema.org/a/574704)
 
 ### Requirements
 
