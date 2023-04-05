@@ -60,9 +60,9 @@ func mountPointHash(mountPoint string) string {
 }
 
 func pidFileName(mountPoint string) string {
-	return fmt.Sprintf("%s/gitfs-%s-%x.pid", pidsDir, filepath.Base(mountPoint), mountPointHash(mountPoint))
+	return fmt.Sprintf("%s/%s-%s.pid", pidsDir, filepath.Base(mountPoint), mountPointHash(mountPoint))
 }
 
 func logFileName(mountPoint string) string {
-	return fmt.Sprintf("%s/gitfs-%s-%x.log", logsDir, filepath.Base(mountPoint), mountPointHash(mountPoint))
+	return fmt.Sprintf("%s/%s-%s.log", logsDir, filepath.Base(mountPoint), mountPointHash(mountPoint))
 }

@@ -36,17 +36,14 @@ var mountCmd = &cobra.Command{
 			mountPoint     = args[1]
 		)
 
-		repository, err, cleanup := newRepository(cmd, repositoryPath)
-		if err != nil {
-			return err
-		}
-		defer cleanup()
-
 		if daemonModeFlag {
 			daemonContext, err := daemonContextByMountPoint(mountPoint)
 			if err != nil {
 				return err
 			}
+
+			cmd.Printf("Running in daemon mode, logs could be discovered in %s\n", daemonContext.LogFileName)
+
 			daemonProcess, err := daemonContext.Reborn()
 			if err != nil {
 				return fmt.Errorf("unable to run daemon process: %w", err)
@@ -61,6 +58,12 @@ var mountCmd = &cobra.Command{
 				}
 			}()
 		}
+
+		repository, err, cleanup := newRepository(cmd, repositoryPath)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
 
 		cmd.Println("Mounting filesystem...")
 		server, err := fs.Mount(mountPoint, nodes.NewRootNode(repository), &fs.Options{
