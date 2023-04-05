@@ -36,6 +36,12 @@ var mountCmd = &cobra.Command{
 			mountPoint     = args[1]
 		)
 
+		repository, err, cleanup := newRepository(cmd, repositoryPath)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+
 		if daemonModeFlag {
 			daemonContext, err := daemonContextByMountPoint(mountPoint)
 			if err != nil {
@@ -55,12 +61,6 @@ var mountCmd = &cobra.Command{
 				}
 			}()
 		}
-
-		repository, err, cleanup := newRepository(cmd, repositoryPath)
-		if err != nil {
-			return err
-		}
-		defer cleanup()
 
 		cmd.Println("Mounting filesystem...")
 		server, err := fs.Mount(mountPoint, nodes.NewRootNode(repository), &fs.Options{
