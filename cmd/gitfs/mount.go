@@ -80,14 +80,13 @@ var mountCmd = &cobra.Command{
 			sigC,
 			syscall.SIGTERM,
 			syscall.SIGINT,
-			syscall.SIGSTOP,
 		)
 
 		for {
 			sig := <-sigC
 
 			switch sig {
-			case syscall.SIGTERM, syscall.SIGINT, syscall.SIGSTOP:
+			case syscall.SIGTERM, syscall.SIGINT:
 				cmd.Println("Received " + sig.String() + ", unmounting...")
 				err := server.Unmount()
 				if err != nil {
