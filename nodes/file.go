@@ -16,7 +16,7 @@ var (
 	_ fs.NodeOpener    = (*FileNode)(nil)
 	_ fs.NodeGetattrer = (*FileNode)(nil)
 	_ fs.NodeReader    = (*FileNode)(nil)
-	_ fs.NodeReleaser  = (*FileNode)(nil)
+	_ fs.NodeFlusher   = (*FileNode)(nil)
 )
 
 // FileNode is a file node.
@@ -71,8 +71,7 @@ func (node *FileNode) Read(_ context.Context, _ fs.FileHandle, dest []byte, off 
 	return fuse.ReadResultData(dest[:n]), 0
 }
 
-// Release releases the file.
-func (node *FileNode) Release(_ context.Context, _ fs.FileHandle) syscall.Errno {
+func (node *FileNode) Flush(_ context.Context, _ fs.FileHandle) syscall.Errno {
 	node.mu.Lock()
 	defer node.mu.Unlock()
 	node.buffer.Reset([]byte{})
