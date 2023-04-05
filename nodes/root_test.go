@@ -41,11 +41,10 @@ var commitFiles = map[string]fstest.MapFS{
 var expectedFS = combineMapFS(
 	prefixMapFS("branches/test/", commitFiles[commits[0]]),
 	prefixMapFS("branches/master/", commitFiles[commits[1]]),
-	prefixMapFS("branches/nested/test/", commitFiles[commits[2]]),
-	prefixMapFS("branches/nested-dir/", commitFiles[commits[3]]),
+	prefixMapFS("branches/nested/dir/test/", commitFiles[commits[3]]),
 	prefixMapFS("tags/v1.0.0/", commitFiles[commits[0]]),
 	prefixMapFS("tags/v1.0.1/", commitFiles[commits[1]]),
-	prefixMapFS("tags/nested/v1.0.2/", commitFiles[commits[2]]),
+	prefixMapFS("tags/nested/dir/test/", commitFiles[commits[3]]),
 	prefixMapFS("commits/"+commits[0]+"/", commitFiles[commits[0]]),
 	prefixMapFS("commits/"+commits[1]+"/", commitFiles[commits[1]]),
 	prefixMapFS("commits/"+commits[2]+"/", commitFiles[commits[2]]),
