@@ -6,6 +6,8 @@ require (
 	github.com/go-git/go-billy/v5 v5.4.1
 	github.com/go-git/go-git/v5 v5.6.1
 	github.com/hanwen/go-fuse/v2 v2.2.0
+	github.com/mitchellh/go-homedir v1.1.0
+	github.com/sevlyar/go-daemon v0.1.6
 	github.com/spf13/cobra v1.6.1
 	github.com/stretchr/testify v1.7.0
 )
@@ -21,6 +23,7 @@ require (
 	github.com/imdario/mergo v0.3.14 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
+	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

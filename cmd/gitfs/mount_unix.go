@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 )
 
-func platformMountOptions(repositoryPath, mountPoint string) []string {
+func mountOptions(repositoryPath, mountPoint string) []string {
 	volumeName := fmt.Sprintf(
 		"%s (%s)",
 		filepath.Base(mountPoint),

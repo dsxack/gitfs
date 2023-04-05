@@ -16,6 +16,7 @@ import (
 )
 
 var debug bool
+var daemonMode = false
 
 var mountCmd = &cobra.Command{
 	Use:   "mount <repository> <mountpoint>",
@@ -27,6 +28,24 @@ var mountCmd = &cobra.Command{
 			mountPoint     = args[1]
 		)
 
+		if daemonMode {
+			daemonContext := daemonContextByMountPoint(mountPoint)
+
+			daemonProcess, err := daemonContext.Reborn()
+			if err != nil {
+				return fmt.Errorf("unable to run daemon process: %w", err)
+			}
+			if daemonProcess != nil {
+				return nil
+			}
+			defer func() {
+				err := daemonContext.Release()
+				if err != nil {
+					cmd.Printf("unable to release daemon process context: %v", err)
+				}
+			}()
+		}
+
 		repository, err, cleanup := newRepository(cmd, repositoryPath)
 		if err != nil {
 			return err
@@ -36,7 +55,7 @@ var mountCmd = &cobra.Command{
 		cmd.Println("Mounting filesystem...")
 		server, err := fs.Mount(mountPoint, nodes.NewRootNode(repository), &fs.Options{
 			MountOptions: fuse.MountOptions{
-				Options: platformMountOptions(repositoryPath, mountPoint),
+				Options: mountOptions(repositoryPath, mountPoint),
 				FsName:  fmt.Sprintf("gitfs: %s", filepath.Join(repositoryPath, git.GitDirName)),
 				Name:    "gitfs",
 				Debug:   debug,
@@ -106,5 +125,6 @@ func newRepository(cmd *cobra.Command, repositoryURL string) (*git.Repository, e
 }
 
 func init() {
-	mountCmd.Flags().BoolVarP(&debug, "debug", "d", false, "enable debug output")
+	mountCmd.Flags().BoolVarP(&debug, "verbose", "v", false, "enable verbose output")
+	mountCmd.Flags().BoolVarP(&daemonMode, "daemon", "d", false, "run in daemon mode")
 }

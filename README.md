@@ -21,14 +21,21 @@ go install github.com/dsxack/gitfs/cmd/gitfs@latest
 
 ### Usage example
 
-with local clone of repository
+Mount with local repository clone or 
+remote repository url (in this case repository will be cloned into temporary directory)
 
 ```sh
-gitfs mount ./path/to/local/clone/git/repository ./path/to/mount/directory
+gitfs mount <local repository url> <mountpoint>
 ```
 
-or with remote source (repository will be cloned into temporary directory)
+Mount in daemon mode
 
 ```sh
-gitfs mount https://github.com/dsxack/gitfs.git ./gitfs
+gitfs mount -d <repository> <mountpoint>
+```
+
+Umount previously mounted in daemon mode filesystem
+
+```sh
+gitfs umount <mountpoint>
 ```
