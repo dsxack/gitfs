@@ -13,10 +13,17 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
+	"syscall"
 )
 
 var debug bool
 var daemonMode = false
+
+func init() {
+	mountCmd.Flags().BoolVarP(&debug, "verbose", "v", false, "enable verbose output")
+	mountCmd.Flags().BoolVarP(&daemonMode, "daemon", "d", false, "run in daemon mode")
+}
 
 var mountCmd = &cobra.Command{
 	Use:   "mount <repository> <mountpoint>",
@@ -65,20 +72,30 @@ var mountCmd = &cobra.Command{
 			return fmt.Errorf("failed to mount filesystem: %w", err)
 		}
 		cmd.Printf("Filesystem mounted successfully into directory: %s\n", mountPoint)
+
 		go server.Wait()
 
-		sig := make(chan os.Signal, 1)
-		signal.Notify(sig, os.Interrupt)
+		sigC := make(chan os.Signal, 1)
+		signal.Notify(
+			sigC,
+			syscall.SIGTERM,
+			syscall.SIGINT,
+			syscall.SIGSTOP,
+		)
 
 		for {
-			<-sig
-			cmd.Println("Received interrupt signal, unmounting...")
-			err = server.Unmount()
-			if err != nil {
-				cmd.Printf("Failed to unmount filesystem: %s\n", err)
-				continue
+			sig := <-sigC
+
+			switch sig {
+			case syscall.SIGTERM, syscall.SIGINT, syscall.SIGSTOP:
+				cmd.Println("Received " + sig.String() + ", unmounting...")
+				err := server.Unmount()
+				if err != nil {
+					cmd.Printf("Failed to unmount filesystem: %s\n", err)
+					return err
+				}
+				return nil
 			}
-			return nil
 		}
 	},
 }
@@ -127,7 +144,18 @@ func newRepository(cmd *cobra.Command, repositoryURL string) (*git.Repository, e
 	return repository, nil, cleanup
 }
 
-func init() {
-	mountCmd.Flags().BoolVarP(&debug, "verbose", "v", false, "enable verbose output")
-	mountCmd.Flags().BoolVarP(&daemonMode, "daemon", "d", false, "run in daemon mode")
+func mountOptions(repositoryPath, mountPoint string) []string {
+	var options []string
+
+	//goland:noinspection GoBoolExpressions
+	if runtime.GOOS == "darwin" {
+		volumeName := fmt.Sprintf(
+			"%s (%s)",
+			filepath.Base(mountPoint),
+			filepath.Base(repositoryPath),
+		)
+		options = append(options, "volname="+volumeName)
+	}
+
+	return options
 }
