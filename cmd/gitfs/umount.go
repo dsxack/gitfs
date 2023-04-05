@@ -22,9 +22,9 @@ var umountCmd = &cobra.Command{
 			return fmt.Errorf("unable to search daemon process: %w", err)
 		}
 
-		err = daemonProcess.Signal(syscall.SIGTERM)
+		err = daemonProcess.Signal(syscall.SIGINT)
 		if err != nil {
-			return fmt.Errorf("unable to terminate daemon process: %w", err)
+			return fmt.Errorf("unable to interrupt daemon process: %w", err)
 		}
 
 		state, err := daemonProcess.Wait()
