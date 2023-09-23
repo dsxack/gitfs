@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: [ '1.18', 'stable' ]
+        go: [ '1.21', 'stable' ]
     name: Go ${{ matrix.go }}
     steps:
       - uses: actions/checkout@v3
