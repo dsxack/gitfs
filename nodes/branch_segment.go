@@ -8,6 +8,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
+	"log/slog"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -38,24 +39,37 @@ func NewBranchSegmentNode(repository *git.Repository, branchPrefix string) *Bran
 // Otherwise, a new BranchSegmentNode is returned.
 // It returns ENOENT if the name is not found.
 func (node *BranchSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+	logger := slog.Default().
+		With(slog.String("lookupBranchSegmentName", name)).
+		With(slog.String("branchPrefix", node.branchPrefix))
 	revision := revisionBranchName(filepath.Join(node.branchPrefix, name))
 	branches, err := node.repository.Branches()
+
 	if err != nil {
+		logger.Error("Error lookup branch segment", slog.String("error", err.Error()))
 		return nil, syscall.ENOENT
 	}
 	ok, hasPrefix := referenceiter.Has(branches, revision)
 	if ok {
 		branchNode, err := NewObjectTreeNodeByRevision(node.repository, revision)
 		if err != nil {
+			logger.Error("Error lookup branch object tree", slog.String("error", err.Error()))
 			return nil, syscall.ENOENT
 		}
+		logger.Info("Branch object tree found")
 		return node.NewInode(ctx, branchNode, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
 	}
 	if !hasPrefix {
+		logger.Info("No branch found")
 		return nil, syscall.ENOENT
 	}
-	ops := BranchSegmentNode{repository: node.repository, branchPrefix: filepath.Join(node.branchPrefix, name) + branchNameSeparator}
-	return node.NewInode(ctx, &ops, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
+	logger.Info("Branch segment found")
+
+	return node.NewInode(
+		ctx,
+		NewBranchSegmentNode(node.repository, filepath.Join(node.branchPrefix, name)+branchNameSeparator),
+		fs.StableAttr{Mode: syscall.S_IFDIR},
+	), 0
 }
 
 // Readdir returns the child nodes of this node.
@@ -77,5 +91,7 @@ func (node *BranchSegmentNode) Readdir(_ context.Context) (fs.DirStream, syscall
 		dirEntries.Add(fuse.DirEntry{Name: segments[0], Mode: syscall.S_IFDIR})
 		return nil
 	})
+	slog.Default().Info("Dir of repository branch segment has been read",
+		slog.String("branchPrefix", node.branchPrefix))
 	return fs.NewListDirStream(dirEntries.Values()), 0
 }

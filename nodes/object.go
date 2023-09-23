@@ -9,6 +9,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
+	"log/slog"
 	"syscall"
 )
 
@@ -71,22 +72,28 @@ func NewObjectTreeNode(
 }
 
 func (node *ObjectTreeNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+	logger := slog.Default().With(slog.String("lookupEntryName", name))
 	entry, err := node.tree.FindEntry(name)
 	if err != nil {
+		logger.Warn("Error lookup entry of object tree", slog.String("error", err.Error()))
 		return nil, syscall.ENOENT
 	}
 	if entry.Mode.IsFile() {
 		file, err := node.tree.File(name)
 		if err != nil {
+			logger.Error("Error lookup entry of object tree", slog.String("error", err.Error()))
 			return nil, syscall.ENOENT
 		}
+		logger.Info("File object found")
 		return node.NewInode(ctx, NewFileNode(file, node.commit), fs.StableAttr{Mode: syscall.S_IFREG}), 0
 	}
 
 	tree, err := node.tree.Tree(name)
 	if err != nil {
+		logger.Error("Error lookup object tree", slog.String("error", err.Error()))
 		return nil, syscall.ENOENT
 	}
+	logger.Info("Directory object tree found")
 
 	return node.NewInode(
 		ctx,
@@ -108,10 +115,12 @@ func (node *ObjectTreeNode) Readdir(_ context.Context) (fs.DirStream, syscall.Er
 			Mode: mode,
 		})
 	}
+	slog.Default().Info("Dir of object tree has been read")
 	return fs.NewListDirStream(dirEntries.Values()), 0
 }
 
 func (node *ObjectTreeNode) Getattr(_ context.Context, _ fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
+	slog.Default().Debug("Got object tree attrs")
 	out.Mtime = uint64(node.commit.Committer.When.Unix())
 	return 0
 }

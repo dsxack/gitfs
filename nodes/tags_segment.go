@@ -8,6 +8,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
+	"log/slog"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -38,9 +39,13 @@ func NewTagSegmentNode(repository *git.Repository, tagPrefix string) *TagSegment
 // Otherwise, a new TagSegmentNode is returned.
 // It returns ENOENT if the name is not found.
 func (node *TagSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+	logger := slog.Default().
+		With(slog.String("lookupTagSegmentName", name)).
+		With(slog.String("tagPrefix", node.tagPrefix))
 	revision := revisionTagName(filepath.Join(node.tagPrefix, name))
 	tags, err := node.repository.Tags()
 	if err != nil {
+		logger.Error("Error lookup tag segment", slog.String("error", err.Error()))
 		return nil, syscall.ENOENT
 	}
 
@@ -48,15 +53,23 @@ func (node *TagSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.Ent
 	if ok {
 		tagNode, err := NewObjectTreeNodeByRevision(node.repository, revision)
 		if err != nil {
+			logger.Error("Error lookup tag object tree", slog.String("error", err.Error()))
 			return nil, syscall.ENOENT
 		}
+		logger.Info("Tag object tree found")
 		return node.NewInode(ctx, tagNode, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
 	}
 	if !hasPrefix {
+		logger.Warn("Tag segment not found")
 		return nil, syscall.ENOENT
 	}
-	ops := TagSegmentNode{repository: node.repository, tagPrefix: filepath.Join(node.tagPrefix, name) + tagNameSeparator}
-	return node.NewInode(ctx, &ops, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
+	logger.Info("Tag segment found")
+
+	return node.NewInode(
+		ctx,
+		NewTagSegmentNode(node.repository, filepath.Join(node.tagPrefix, name)+tagNameSeparator),
+		fs.StableAttr{Mode: syscall.S_IFDIR},
+	), 0
 }
 
 // Readdir returns the child nodes of this node.
@@ -78,5 +91,7 @@ func (node *TagSegmentNode) Readdir(_ context.Context) (fs.DirStream, syscall.Er
 		dirEntries.Add(fuse.DirEntry{Name: segments[0], Mode: syscall.S_IFDIR})
 		return nil
 	})
+	slog.Default().Info("Dir of repository tag segment has been read", slog.String("tagPrefix", node.tagPrefix))
+
 	return fs.NewListDirStream(dirEntries.Values()), 0
 }

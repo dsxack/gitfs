@@ -8,6 +8,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
+	"log/slog"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -40,22 +41,29 @@ func NewTagsNode(repository *git.Repository) *TagsNode {
 // If tag name is "foo/bar", it will return a tag segment node with name "bar".
 // It returns ENOENT if the name is not found.
 func (node *TagsNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+	logger := slog.Default().With(slog.String("lookupTagName", name))
 	revision := revisionTagName(name)
 	tags, err := node.repository.Tags()
 	if err != nil {
+		logger.Error("Error lookup tag", slog.String("error", err.Error()))
 		return nil, syscall.ENOENT
 	}
 	ok, hasPrefix := referenceiter.Has(tags, revision)
 	if ok {
 		branchNode, err := NewObjectTreeNodeByRevision(node.repository, revision)
 		if err != nil {
+			logger.Error("Error lookup tag object tree", slog.String("error", err.Error()))
 			return nil, syscall.ENOENT
 		}
+		logger.Info("Tag object tree found")
 		return node.NewInode(ctx, branchNode, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
 	}
 	if !hasPrefix {
+		logger.Warn("Tag not found")
 		return nil, syscall.ENOENT
 	}
+	logger.Info("Tag segment found")
+
 	return node.NewInode(
 		ctx,
 		NewTagSegmentNode(node.repository, name+tagNameSeparator),
@@ -77,6 +85,8 @@ func (node *TagsNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
 		dirEntries.Add(fuse.DirEntry{Name: segments[0], Mode: syscall.S_IFDIR})
 		return nil
 	})
+	slog.Default().Info("Dir of repository tags has been read")
+
 	return fs.NewListDirStream(dirEntries.Values()), 0
 }
 

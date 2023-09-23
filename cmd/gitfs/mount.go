@@ -10,6 +10,7 @@ import (
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
 	"github.com/spf13/cobra"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -18,11 +19,11 @@ import (
 	"syscall"
 )
 
-var debugFlag bool
 var daemonModeFlag = false
+var verboseLevel int
 
 func init() {
-	mountCmd.Flags().BoolVarP(&debugFlag, "verbose", "v", false, "enable verbose output")
+	mountCmd.Flags().CountVarP(&verboseLevel, "verbose", "v", "enable verbose output")
 	mountCmd.Flags().BoolVarP(&daemonModeFlag, "daemon", "d", false, "run in daemon mode")
 }
 
@@ -35,6 +36,7 @@ var mountCmd = &cobra.Command{
 			repositoryPath = args[0]
 			mountPoint     = args[1]
 		)
+		setupLogger()
 
 		if daemonModeFlag {
 			daemonContext, err := daemonContextByMountPoint(mountPoint)
@@ -70,7 +72,7 @@ var mountCmd = &cobra.Command{
 				Options: mountOptions(repositoryPath, mountPoint),
 				FsName:  fmt.Sprintf("gitfs: %s", filepath.Join(repositoryPath, git.GitDirName)),
 				Name:    "gitfs",
-				Debug:   debugFlag,
+				Debug:   verboseLevel > 2,
 			},
 		})
 		if err != nil {
@@ -168,4 +170,21 @@ func mountOptions(repositoryPath, mountPoint string) []string {
 	}
 
 	return options
+}
+
+func setupLogger() {
+	logLevel := slog.LevelError
+	if verboseLevel > 0 {
+		logLevel = slog.LevelInfo
+	}
+	if verboseLevel > 1 {
+		logLevel = slog.LevelDebug
+	}
+	logger := slog.New(slog.NewTextHandler(
+		os.Stderr,
+		&slog.HandlerOptions{
+			Level: logLevel,
+		},
+	))
+	slog.SetDefault(logger)
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
+	"log/slog"
 	"syscall"
 )
 
@@ -34,10 +35,14 @@ func NewCommitsNode(repository *git.Repository) *CommitsNode {
 // It returns a directory that represents the commit.
 // It returns ENOENT if the name is not found.
 func (node *CommitsNode) Lookup(ctx context.Context, hash string, _ *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+	logger := slog.Default().With(slog.String("lookupCommitHash", hash))
 	objectNode, err := NewObjectTreeNodeByRevision(node.repository, hash)
 	if err != nil {
+		logger.Warn("Error lookup commit object tree", slog.String("error", err.Error()))
 		return nil, syscall.ENOENT
 	}
+	logger.Info("Commit object tree found")
+
 	return node.NewInode(ctx, objectNode, fs.StableAttr{Mode: syscall.S_IFDIR}), 0
 }
 
@@ -53,5 +58,7 @@ func (node *CommitsNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno
 		dirEntries.Add(fuse.DirEntry{Name: commit.Hash.String(), Mode: syscall.S_IFDIR})
 		return nil
 	})
+	slog.Default().Info("Dir of repository commits has been read")
+
 	return fs.NewListDirStream(dirEntries.Values()), 0
 }
