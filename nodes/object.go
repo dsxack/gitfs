@@ -88,7 +88,7 @@ func (node *ObjectTreeNode) Lookup(ctx context.Context, name string, _ *fuse.Ent
 		return node.NewInode(ctx, NewFileNode(file, node.commit), fs.StableAttr{Mode: syscall.S_IFREG}), 0
 	}
 
-	tree, err := node.tree.Tree(name)
+	tree, err := object.GetTree(node.repository.Storer, entry.Hash)
 	if err != nil {
 		logger.Error("Error lookup object tree", slog.String("error", err.Error()))
 		return nil, syscall.ENOENT
