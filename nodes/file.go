@@ -70,11 +70,15 @@ var (
 	_ fs.FileReader = (*FileHandler)(nil)
 )
 
+// FileHandler implements the fs.FileReader interface.
+// It is used to read the file.
+// It holds bytes.Reader to read the file at the given offset.
 type FileHandler struct {
 	reader io.ReaderAt
 	file   *object.File
 }
 
+// NewFileHandler creates a new file handler.
 func NewFileHandler(file *object.File, reader io.ReaderAt) *FileHandler {
 	return &FileHandler{
 		file:   file,
@@ -82,6 +86,7 @@ func NewFileHandler(file *object.File, reader io.ReaderAt) *FileHandler {
 	}
 }
 
+// Read reads the file.
 func (h FileHandler) Read(_ context.Context, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
 	logger := slog.Default().
 		With(slog.String("fileName", h.file.Name)).
