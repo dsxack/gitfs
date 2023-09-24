@@ -8,7 +8,6 @@ import (
 	"github.com/hanwen/go-fuse/v2/fuse"
 	"io"
 	"log/slog"
-	"sync"
 	"syscall"
 )
 
@@ -16,16 +15,12 @@ var (
 	_ fs.InodeEmbedder = (*FileNode)(nil)
 	_ fs.NodeOpener    = (*FileNode)(nil)
 	_ fs.NodeGetattrer = (*FileNode)(nil)
-	_ fs.NodeReader    = (*FileNode)(nil)
-	_ fs.NodeFlusher   = (*FileNode)(nil)
 )
 
 // FileNode is a file node.
 type FileNode struct {
 	fs.Inode
 	file   *object.File
-	buffer *bytes.Reader
-	mu     sync.Mutex
 	commit *object.Commit
 }
 
@@ -44,15 +39,22 @@ func (node *FileNode) Open(_ context.Context, _ uint32) (fh fs.FileHandle, fuseF
 		logger.Error("Error while opening file", slog.String("error", err.Error()))
 		return nil, 0, syscall.ENOENT
 	}
+
+	// When remote repository is used, the storage is memory.
+	// So, we can use io.ReaderAt directly.
+	if readerAt, ok := reader.(io.ReaderAt); ok {
+		logger.Info("File opened")
+		return NewFileHandler(node.file, readerAt), 0, 0
+	}
+
 	buf, err := io.ReadAll(reader)
 	if err != nil {
 		logger.Error("Error while opening file", slog.String("error", err.Error()))
 		return nil, 0, syscall.ENOENT
 	}
-	node.buffer = bytes.NewReader(buf)
 	logger.Info("File opened")
 
-	return nil, 0, 0
+	return NewFileHandler(node.file, bytes.NewReader(buf)), 0, 0
 }
 
 // Getattr gets the file attributes.
@@ -64,19 +66,30 @@ func (node *FileNode) Getattr(_ context.Context, _ fs.FileHandle, out *fuse.Attr
 	return 0
 }
 
-// Read reads the file.
-func (node *FileNode) Read(_ context.Context, _ fs.FileHandle, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
-	node.mu.Lock()
-	defer node.mu.Unlock()
+var (
+	_ fs.FileReader = (*FileHandler)(nil)
+)
 
+type FileHandler struct {
+	reader io.ReaderAt
+	file   *object.File
+}
+
+func NewFileHandler(file *object.File, reader io.ReaderAt) *FileHandler {
+	return &FileHandler{
+		file:   file,
+		reader: reader,
+	}
+}
+
+func (h FileHandler) Read(_ context.Context, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
 	logger := slog.Default().
-		With(slog.String("fileName", node.file.Name)).
-		With(slog.Int64("fileSize", node.file.Size)).
+		With(slog.String("fileName", h.file.Name)).
+		With(slog.Int64("fileSize", h.file.Size)).
 		With(slog.Int64("offset", off)).
-		With(slog.Int("destSize", len(dest))).
-		With(slog.Int("bufferSize", node.buffer.Len()))
+		With(slog.Int("destSize", len(dest)))
 
-	n, err := node.buffer.ReadAt(dest, off)
+	n, err := h.reader.ReadAt(dest, off)
 	if err == io.EOF {
 		logger.Info("File read")
 		return fuse.ReadResultData(dest[off : off+int64(n)]), 0
@@ -88,12 +101,4 @@ func (node *FileNode) Read(_ context.Context, _ fs.FileHandle, dest []byte, off 
 	logger.Info("File read")
 
 	return fuse.ReadResultData(dest[:n]), 0
-}
-
-func (node *FileNode) Flush(_ context.Context, _ fs.FileHandle) syscall.Errno {
-	node.mu.Lock()
-	defer node.mu.Unlock()
-	node.buffer.Reset([]byte{})
-	slog.Default().Info("File flushed", slog.String("fileName", node.file.Name))
-	return 0
 }
