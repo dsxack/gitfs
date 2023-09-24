@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"github.com/dsxack/gitfs/nodes"
+	"github.com/fjl/memsize"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/cache"
 	"github.com/go-git/go-git/v5/storage/filesystem"
+	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
 	"github.com/spf13/cobra"
@@ -78,7 +80,7 @@ var mountCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to mount filesystem: %w", err)
 		}
-		cmd.Printf("Filesystem mounted successfully into directory: %s\n", mountPoint)
+		cmd.Printf("Filesystem successfully mounted into directory: %s\n", mountPoint)
 
 		go server.Wait()
 
@@ -117,19 +119,19 @@ func newRepository(cmd *cobra.Command, repositoryURL string) (*git.Repository, e
 
 	_, err := os.Stat(repositoryURL)
 	if os.IsNotExist(err) {
-		clonePath, err := os.MkdirTemp("", "gitfs")
-		if err != nil {
-			return nil, fmt.Errorf("failed to create temporary directory: %w", err), dummyCleanup
-		}
-		cmd.Printf("Cloning repository into temporary directory: %s\n", clonePath)
-		repository, err := git.PlainClone(clonePath, false, &git.CloneOptions{
-			URL: repositoryURL,
+		cmd.Printf("Cloning repository %s into memory\n", repositoryURL)
+		storage := memory.NewStorage()
+		r, err := git.Clone(storage, nil, &git.CloneOptions{
+			NoCheckout: true,
+			URL:        repositoryURL,
+			Progress:   cmd.OutOrStderr(),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to clone repository: %w", err), dummyCleanup
 		}
-		cmd.Println("Repository cloned successfully")
-		return repository, nil, dummyCleanup
+		size := memsize.Scan(storage)
+		cmd.Printf("Repository size: %s\n", memsize.HumanSize(size.Total))
+		return r, nil, dummyCleanup
 	}
 	workDirFS := osfs.New(repositoryURL)
 	if _, err := workDirFS.Stat(git.GitDirName); err == nil {
