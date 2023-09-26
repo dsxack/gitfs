@@ -2,8 +2,7 @@ package nodes
 
 import (
 	"context"
-	"github.com/dsxack/gitfs/internal/referenceiter"
-	"github.com/dsxack/gitfs/internal/set"
+	"github.com/dsxack/gitfs/internal/iter"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/hanwen/go-fuse/v2/fs"
@@ -49,7 +48,7 @@ func (node *BranchesNode) Lookup(ctx context.Context, name string, _ *fuse.Entry
 		logger.Error("Error lookup branch", slog.String("error", err.Error()))
 		return nil, syscall.ENOENT
 	}
-	ok, hasPrefix := referenceiter.Has(branches, revision)
+	ok, hasPrefix := iter.HasReference(branches, revision)
 	if ok {
 		branchNode, err := NewObjectTreeNodeByRevision(node.repository, revision)
 		if err != nil {
@@ -79,15 +78,15 @@ func (node *BranchesNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errn
 	if err != nil {
 		return nil, syscall.ENOENT
 	}
-	dirEntries := set.New[fuse.DirEntry]()
-	_ = branches.ForEach(func(branchRef *plumbing.Reference) error {
-		name := bareBranchName(branchRef.Name().String())
-		segments := strings.Split(name, branchNameSeparator)
-		dirEntries.Add(fuse.DirEntry{Name: segments[0], Mode: syscall.S_IFDIR})
-		return nil
-	})
 	slog.Default().Info("Dir of repository branches has been read")
-	return fs.NewListDirStream(dirEntries.Values()), 0
+	return iter.NewDirStreamAdapter[*plumbing.Reference](
+		branches,
+		func(branchRef *plumbing.Reference) fuse.DirEntry {
+			name := bareBranchName(branchRef.Name().String())
+			segments := strings.Split(name, branchNameSeparator)
+			return fuse.DirEntry{Name: segments[0], Mode: syscall.S_IFDIR}
+		},
+	), 0
 }
 
 const revisionBranchPrefix = "refs/heads/"

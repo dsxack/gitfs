@@ -2,8 +2,7 @@ package nodes
 
 import (
 	"context"
-	"github.com/dsxack/gitfs/internal/referenceiter"
-	"github.com/dsxack/gitfs/internal/set"
+	"github.com/dsxack/gitfs/internal/iter"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/hanwen/go-fuse/v2/fs"
@@ -49,7 +48,7 @@ func (node *BranchSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.
 		logger.Error("Error lookup branch segment", slog.String("error", err.Error()))
 		return nil, syscall.ENOENT
 	}
-	ok, hasPrefix := referenceiter.Has(branches, revision)
+	ok, hasPrefix := iter.HasReference(branches, revision)
 	if ok {
 		branchNode, err := NewObjectTreeNodeByRevision(node.repository, revision)
 		if err != nil {
@@ -77,21 +76,24 @@ func (node *BranchSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.
 // For example, if branch names are "foo/bar" and "foo/buz", then
 // will return "foo" directory with two children, "bar" and "buz".
 func (node *BranchSegmentNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
-	branches, err := node.repository.Branches()
+	var branches iter.Iter[*plumbing.Reference]
+	var err error
+
+	branches, err = node.repository.Branches()
 	if err != nil {
 		return nil, syscall.ENOENT
 	}
-	dirEntries := set.New[fuse.DirEntry]()
-	_ = branches.ForEach(func(branchRef *plumbing.Reference) error {
+	branches = iter.NewFilterIter(branches, func(branchRef *plumbing.Reference) bool {
 		branchName := bareBranchName(branchRef.Name().String())
-		if !strings.HasPrefix(branchName, node.branchPrefix) {
-			return nil
-		}
-		segments := strings.Split(strings.TrimPrefix(branchName, node.branchPrefix), branchNameSeparator)
-		dirEntries.Add(fuse.DirEntry{Name: segments[0], Mode: syscall.S_IFDIR})
-		return nil
+		return strings.HasPrefix(branchName, node.branchPrefix)
 	})
-	slog.Default().Info("Dir of repository branch segment has been read",
-		slog.String("branchPrefix", node.branchPrefix))
-	return fs.NewListDirStream(dirEntries.Values()), 0
+
+	return iter.NewDirStreamAdapter[*plumbing.Reference](
+		branches,
+		func(branchRef *plumbing.Reference) fuse.DirEntry {
+			branchName := bareBranchName(branchRef.Name().String())
+			segments := strings.Split(strings.TrimPrefix(branchName, node.branchPrefix), branchNameSeparator)
+			return fuse.DirEntry{Name: segments[0], Mode: syscall.S_IFDIR}
+		},
+	), 0
 }

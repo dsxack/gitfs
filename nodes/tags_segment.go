@@ -2,8 +2,7 @@ package nodes
 
 import (
 	"context"
-	"github.com/dsxack/gitfs/internal/referenceiter"
-	"github.com/dsxack/gitfs/internal/set"
+	"github.com/dsxack/gitfs/internal/iter"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/hanwen/go-fuse/v2/fs"
@@ -49,7 +48,7 @@ func (node *TagSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.Ent
 		return nil, syscall.ENOENT
 	}
 
-	ok, hasPrefix := referenceiter.Has(tags, revision)
+	ok, hasPrefix := iter.HasReference(tags, revision)
 	if ok {
 		tagNode, err := NewObjectTreeNodeByRevision(node.repository, revision)
 		if err != nil {
@@ -77,21 +76,23 @@ func (node *TagSegmentNode) Lookup(ctx context.Context, name string, _ *fuse.Ent
 // For example, if the tag names are "release/v1.0.0" and "release/v1.1.0"
 // then will return "release" directory with two children, "v1.0.0" and "v1.1.0".
 func (node *TagSegmentNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
-	tags, err := node.repository.Tags()
+	var tags iter.Iter[*plumbing.Reference]
+	var err error
+	tags, err = node.repository.Tags()
 	if err != nil {
 		return nil, syscall.ENOENT
 	}
-	dirEntries := set.New[fuse.DirEntry]()
-	_ = tags.ForEach(func(tagRef *plumbing.Reference) error {
+	tags = iter.NewFilterIter(tags, func(tagRef *plumbing.Reference) bool {
 		tagName := bareTagName(tagRef.Name().String())
-		if !strings.HasPrefix(tagName, node.tagPrefix) {
-			return nil
-		}
-		segments := strings.Split(strings.TrimPrefix(tagName, node.tagPrefix), tagNameSeparator)
-		dirEntries.Add(fuse.DirEntry{Name: segments[0], Mode: syscall.S_IFDIR})
-		return nil
+		return strings.HasPrefix(tagName, node.tagPrefix)
 	})
 	slog.Default().Info("Dir of repository tag segment has been read", slog.String("tagPrefix", node.tagPrefix))
-
-	return fs.NewListDirStream(dirEntries.Values()), 0
+	return iter.NewDirStreamAdapter[*plumbing.Reference](
+		tags,
+		func(tagRef *plumbing.Reference) fuse.DirEntry {
+			tagName := bareTagName(tagRef.Name().String())
+			segments := strings.Split(strings.TrimPrefix(tagName, node.tagPrefix), tagNameSeparator)
+			return fuse.DirEntry{Name: segments[0], Mode: syscall.S_IFDIR}
+		},
+	), 0
 }

@@ -2,7 +2,7 @@ package nodes
 
 import (
 	"context"
-	"github.com/dsxack/gitfs/internal/set"
+	"github.com/dsxack/gitfs/internal/iter"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/hanwen/go-fuse/v2/fs"
@@ -53,12 +53,10 @@ func (node *CommitsNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno
 	if err != nil {
 		return nil, syscall.ENOENT
 	}
-	dirEntries := set.New[fuse.DirEntry]()
-	_ = commits.ForEach(func(commit *object.Commit) error {
-		dirEntries.Add(fuse.DirEntry{Name: commit.Hash.String(), Mode: syscall.S_IFDIR})
-		return nil
-	})
 	slog.Default().Info("Dir of repository commits has been read")
-
-	return fs.NewListDirStream(dirEntries.Values()), 0
+	return iter.NewDirStreamAdapter[*object.Commit](
+		commits, func(commit *object.Commit) fuse.DirEntry {
+			return fuse.DirEntry{Name: commit.Hash.String(), Mode: syscall.S_IFDIR}
+		},
+	), 0
 }

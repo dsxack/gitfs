@@ -2,8 +2,7 @@ package nodes
 
 import (
 	"context"
-	"github.com/dsxack/gitfs/internal/referenceiter"
-	"github.com/dsxack/gitfs/internal/set"
+	"github.com/dsxack/gitfs/internal/iter"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/hanwen/go-fuse/v2/fs"
@@ -48,7 +47,7 @@ func (node *TagsNode) Lookup(ctx context.Context, name string, _ *fuse.EntryOut)
 		logger.Error("Error lookup tag", slog.String("error", err.Error()))
 		return nil, syscall.ENOENT
 	}
-	ok, hasPrefix := referenceiter.Has(tags, revision)
+	ok, hasPrefix := iter.HasReference(tags, revision)
 	if ok {
 		branchNode, err := NewObjectTreeNodeByRevision(node.repository, revision)
 		if err != nil {
@@ -78,16 +77,15 @@ func (node *TagsNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
 	if err != nil {
 		return nil, syscall.ENOENT
 	}
-	dirEntries := set.New[fuse.DirEntry]()
-	_ = tagRefs.ForEach(func(tagRef *plumbing.Reference) error {
-		tagName := bareTagName(tagRef.Name().String())
-		segments := strings.Split(tagName, tagNameSeparator)
-		dirEntries.Add(fuse.DirEntry{Name: segments[0], Mode: syscall.S_IFDIR})
-		return nil
-	})
 	slog.Default().Info("Dir of repository tags has been read")
-
-	return fs.NewListDirStream(dirEntries.Values()), 0
+	return iter.NewDirStreamAdapter[*plumbing.Reference](
+		tagRefs,
+		func(tagRef *plumbing.Reference) fuse.DirEntry {
+			tagName := bareTagName(tagRef.Name().String())
+			segments := strings.Split(tagName, tagNameSeparator)
+			return fuse.DirEntry{Name: segments[0], Mode: syscall.S_IFDIR}
+		},
+	), 0
 }
 
 const revisionTagPrefix = "refs/tags/"

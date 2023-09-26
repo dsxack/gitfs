@@ -3,7 +3,7 @@ package nodes
 import (
 	"context"
 	"fmt"
-	"github.com/dsxack/gitfs/internal/set"
+	"github.com/dsxack/gitfs/internal/iter"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -103,20 +103,20 @@ func (node *ObjectTreeNode) Lookup(ctx context.Context, name string, _ *fuse.Ent
 }
 
 func (node *ObjectTreeNode) Readdir(_ context.Context) (fs.DirStream, syscall.Errno) {
-	dirEntries := set.New[fuse.DirEntry]()
-	for _, entry := range node.tree.Entries {
-		var mode uint32 = fuse.S_IFREG
-		if !entry.Mode.IsFile() {
-			mode = fuse.S_IFDIR
-		}
-
-		dirEntries.Add(fuse.DirEntry{
-			Name: entry.Name,
-			Mode: mode,
-		})
-	}
 	slog.Default().Info("Dir of object tree has been read")
-	return fs.NewListDirStream(dirEntries.Values()), 0
+	return iter.NewDirStreamAdapter[object.TreeEntry](
+		iter.NewSliceIter(node.tree.Entries),
+		func(entry object.TreeEntry) fuse.DirEntry {
+			var mode uint32 = fuse.S_IFREG
+			if !entry.Mode.IsFile() {
+				mode = fuse.S_IFDIR
+			}
+			return fuse.DirEntry{
+				Name: entry.Name,
+				Mode: mode,
+			}
+		},
+	), 0
 }
 
 func (node *ObjectTreeNode) Getattr(_ context.Context, _ fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
