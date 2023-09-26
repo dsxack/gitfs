@@ -31,6 +31,9 @@ func getVersionString() string {
 			lastCommit, _ = time.Parse(time.RFC3339, kv.Value)
 		}
 	}
+	if revision == "" {
+		return fmt.Sprintf("gitfs: version %s", info.Main.Version)
+	}
 	return fmt.Sprintf(
 		"gitfs: version %s, build %s",
 		revision,
