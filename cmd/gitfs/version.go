@@ -17,7 +17,7 @@ var versionCmd = &cobra.Command{
 
 func getVersionString() string {
 	info, ok := debug.ReadBuildInfo()
-	if ok {
+	if !ok {
 		return "gitfs: unknown version"
 	}
 	var revision string
