@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/dsxack/gitfs/nodes"
-	"github.com/fjl/memsize"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/cache"
@@ -129,8 +128,6 @@ func newRepository(cmd *cobra.Command, repositoryURL string) (*git.Repository, e
 		if err != nil {
 			return nil, fmt.Errorf("failed to clone repository: %w", err), dummyCleanup
 		}
-		size := memsize.Scan(storage)
-		cmd.Printf("Repository size: %s\n", memsize.HumanSize(size.Total))
 		return r, nil, dummyCleanup
 	}
 	workDirFS := osfs.New(repositoryURL)

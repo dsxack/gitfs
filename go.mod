@@ -3,7 +3,6 @@ module github.com/dsxack/gitfs
 go 1.21
 
 require (
-	github.com/fjl/memsize v0.0.2
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.9.0
 	github.com/hanwen/go-fuse/v2 v2.4.0
