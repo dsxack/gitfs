@@ -21,23 +21,41 @@ go install github.com/dsxack/gitfs/cmd/gitfs@latest
 
 ### Usage
 
-Mount with local repository clone or 
-remote repository url (in this case repository will be cloned into temporary directory)
-
+Mount
 ```sh
-gitfs mount <local repository url> <mountpoint>
+gitfs mount <repository url> <mountpoint>
+```
+
+Mounting local repository
+```sh
+gitfs mount /home/dsxack/work/project /mnt/project
+```
+
+Mounting remote repository (repository will be cloned into memory)
+```sh
+gitfs mount https://github.com/dsxack/go /mnt/go
 ```
 
 Mount in daemon mode
-
 ```sh
 gitfs mount -d <repository> <mountpoint>
 ```
 
 Umount previously mounted in daemon mode filesystem
-
 ```sh
 gitfs umount <mountpoint>
+```
+
+Mount with verbose logging for debugging reasons
+```sh
+# Info
+gitfs mount https://github.com/dsxack/go /mnt/go -v
+
+# Debug
+gitfs mount https://github.com/dsxack/go /mnt/go -vv
+
+# Trace
+gitfs mount https://github.com/dsxack/go /mnt/go -vvv
 ```
 
 ### License
