@@ -4,39 +4,27 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"runtime/debug"
-	"time"
 )
+
+var version string
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version information",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println(getVersionString())
+		cmd.Println(getVersionString())
 	},
 }
 
 func getVersionString() string {
+	if version != "" {
+		return fmt.Sprintf("gitfs: v%s", version)
+	}
+
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return "gitfs: unknown version"
 	}
-	var revision string
-	var lastCommit time.Time
 
-	for _, kv := range info.Settings {
-		switch kv.Key {
-		case "vcs.revision":
-			revision = kv.Value
-		case "vcs.time":
-			lastCommit, _ = time.Parse(time.RFC3339, kv.Value)
-		}
-	}
-	if revision == "" {
-		return fmt.Sprintf("gitfs: version %s", info.Main.Version)
-	}
-	return fmt.Sprintf(
-		"gitfs: version %s, build %s",
-		revision,
-		lastCommit,
-	)
+	return fmt.Sprintf("gitfs: %s", info.Main.Version)
 }
