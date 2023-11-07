@@ -42,3 +42,42 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+
+brews:
+  - name: gitfs
+    url_template: "https://github.com/dsxack/gitfs/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    commit_author:
+      name: "Smotrov Dmitriy"
+      email: "dsxack@gmail.com"
+    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
+    folder: Formula
+    homepage: "https://github.com/dsxack/gitfs"
+    description: "FUSE filesystem for browsing contents of git repositories revisions"
+    license: "MIT"
+    test: |
+      system "#{bin}/gitfs", "version"
+    install: |
+      bin.install "{{ .ProjectName }}"
+    repository:
+      owner: "dsxack"
+      name: "homebrew-tap"
+      branch: "main"
+    custom_block: |
+      class MacFuseRequirement < Requirement
+        fatal true
+    
+        satisfy(build_env: false) do
+          File.exist?("/usr/local/include/fuse/fuse.h") &&
+            !File.symlink?("/usr/local/include/fuse")
+        end
+    
+        def message
+          <<~EOS
+            macFUSE is required; install it via:
+            brew install --cask macfuse
+          EOS
+        end
+      end
+    
+      depends_on "libfuse" if OS.linux?
+      depends_on MacFuseRequirement if OS.mac?

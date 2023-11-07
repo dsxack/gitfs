@@ -15,6 +15,12 @@ FUSE filesystem for browsing contents of git repositories revisions.
 
 ### Install
 
+with Homebrew
+```sh
+brew install dsxack/tap/gitfs
+```
+
+or with Go
 ```sh
 go install github.com/dsxack/gitfs/cmd/gitfs@latest
 ```
