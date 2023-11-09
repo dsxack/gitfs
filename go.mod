@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.9.0
-	github.com/hanwen/go-fuse/v2 v2.4.0
+	github.com/hanwen/go-fuse/v2 v2.4.2
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/sevlyar/go-daemon v0.1.6
 	github.com/spf13/cobra v1.7.0
