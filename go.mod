@@ -8,7 +8,7 @@ require (
 	github.com/hanwen/go-fuse/v2 v2.4.2
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/sevlyar/go-daemon v0.1.6
-	github.com/spf13/cobra v1.7.0
+	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.8.4
 )
 
