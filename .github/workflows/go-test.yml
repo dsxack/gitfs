@@ -1,4 +1,4 @@
-name: Go package
+name: Go tests
 
 on:
   push:
@@ -7,15 +7,16 @@ on:
     branches:
       - master
       - main
-
+  pull_request:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go: [ '1.21', 'stable' ]
-    name: Go ${{ matrix.go }}
+        go: [ 'stable' ]
+        os: [ ubuntu-latest, macos-latest ]
+    name: Go ${{ matrix.go }} ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
 
@@ -26,14 +27,29 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt install fuse
+          if [ "$RUNNER_OS" = "Linux" ]
+          then
+              sudo apt-get update
+              sudo apt-get install -y fuse
+          fi
+          if [ "$RUNNER_OS" = "macOS" ]
+          then
+              brew install --cask macfuse
+          fi
 
       - name: Build
-        run: go build -v ./...
+        run: |
+          which go
+          go build -v ./...
 
       - name: Test
         run: |
-          go test `go list ./... | grep -v examples` -coverprofile=coverage.txt -covermode=atomic
+          if [ "$RUNNER_OS" = "macOS" ]
+          then
+            sudo /Users/runner/hostedtoolcache/go/1.21.4/x64/bin/go test -timeout 1m `go list ./... | grep -v examples` -coverprofile=coverage.txt -covermode=atomic
+          else
+            go test -timeout 1m `go list ./... | grep -v examples` -coverprofile=coverage.txt -covermode=atomic
+          fi
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
