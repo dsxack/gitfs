@@ -11,7 +11,7 @@ FUSE filesystem for browsing contents of git repositories revisions.
 ### Requirements
 
 - Linux or macOS
-- Installed fuse library (libfuse-dev on Debian/Ubuntu) or [osxfuse](https://osxfuse.github.io/) on macOS
+- Installed fuse library (libfuse-dev on Debian/Ubuntu) or [macFUSE](https://osxfuse.github.io/) on macOS
 
 ### Install
 
